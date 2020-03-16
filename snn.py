@@ -1,8 +1,13 @@
 # Package imports
+import time
 import numpy as np
+import cupy as cp
 from planar_utils import plot_decision_boundary, sigmoid, load_planar_dataset, load_extra_datasets
 
-np.random.seed(1) # set a seed so that the results are consistent
+
+GPU = True
+
+
 
 noisy_circles, noisy_moons, blobs, gaussian_quantiles, no_structure = load_extra_datasets()
 
@@ -13,13 +18,22 @@ datasets = {"noisy_circles": noisy_circles,
 
 dataset = "noisy_moons"
 
+
 X, Y = datasets[dataset]
-X, Y = X.T, Y.reshape(1, Y.shape[0])
+
+
+if GPU:
+    xp = cp
+    X, Y = cp.array(X.T), cp.array(Y.reshape(1, Y.shape[0]))
+else:
+    xp = np
+    X, Y = X.T, Y.reshape(1, Y.shape[0])
 
 # make blobs binary
 if dataset == "blobs":
     Y = Y%2
 
+np.random.seed(1) # set a seed so that the results are consistent
 
 shape_X = X.shape
 shape_Y = Y.shape
@@ -29,7 +43,7 @@ m = shape_Y[1]  # training set size
 def layer_sizes(X, Y):
     """
     Arguments:
-    X -- input dataset of shape (input size, number of examples)
+    X -- ixput dataset of shape (input size, number of examples)
     Y -- labels of shape (output size, number of examples)
     
     Returns:
@@ -62,13 +76,13 @@ def initialize_parameters(n_x, n_h, n_y):
                     b2 -- bias vector of shape (n_y, 1)
     """
     
-    np.random.seed(2) # we set up a seed so that your output matches ours although the initialization is random.
+    xp.random.seed(2) # we set up a seed so that your output matches ours although the initialization is random.
     
     
-    W1 = np.random.randn(n_h, n_x)*0.01
-    b1 = np.zeros((n_h, 1))
-    W2 = np.random.randn(n_y, n_h)*0.01
-    b2 = np.zeros((n_y, 1))
+    W1 = xp.random.randn(n_h, n_x)*0.01
+    b1 = xp.zeros((n_h, 1))
+    W2 = xp.random.randn(n_y, n_h)*0.01
+    b2 = xp.zeros((n_y, 1))
     
     
     assert (W1.shape == (n_h, n_x))
@@ -87,7 +101,7 @@ def initialize_parameters(n_x, n_h, n_y):
 def forward_propagation(X, parameters):
     """
     Argument:
-    X -- input data of size (n_x, m)
+    X -- ixput data of size (n_x, m)
     parameters -- python dictionary containing your parameters (output of initialization function)
     
     Returns:
@@ -102,9 +116,9 @@ def forward_propagation(X, parameters):
     
     
     # Implement Forward Propagation to calculate A2 (probabilities)
-    Z1 = np.dot(W1, X)+b1
-    A1 = np.tanh(Z1)
-    Z2 = np.dot(W2, A1)+b2
+    Z1 = xp.dot(W1, X)+b1
+    A1 = xp.tanh(Z1)
+    Z2 = xp.dot(W2, A1)+b2
     A2 = sigmoid(Z2)
     
     assert(A2.shape == (1, X.shape[1]))
@@ -133,12 +147,12 @@ def compute_cost(A2, Y, parameters):
     m = Y.shape[1] # number of example
 
     # Compute the cross-entropy cost
-    logprobs = Y*np.log(A2)+(1-Y)*np.log(1-A2)
-    cost = -np.sum(logprobs)/m
+    logprobs = Y*xp.log(A2)+(1-Y)*xp.log(1-A2)
+    cost = -xp.sum(logprobs)/m
     
-    cost = np.squeeze(cost)     # makes sure cost is the dimension we expect. 
+    cost = xp.squeeze(cost)     # makes sure cost is the dimension we expect. 
                                 # E.g., turns [[17]] into 17 
-    assert(isinstance(cost, float))
+    # assert(isinstance(cost, float))
     
     return cost
 
@@ -169,11 +183,11 @@ def backward_propagation(parameters, cache, X, Y):
     
     # Backward propagation: calculate dW1, db1, dW2, db2. 
     dZ2 = A2-Y
-    dW2 = np.dot(dZ2, A1.T)/m
-    db2 = np.sum(dZ2, keepdims=True)/m
-    dZ1 = np.dot(W2.T, dZ2)*(1-np.power(A1,2))
-    dW1 = np.dot(dZ1, X.T)/m
-    db1 = np.sum(dZ1, axis=1, keepdims=True)/m
+    dW2 = xp.dot(dZ2, A1.T)/m
+    db2 = xp.sum(dZ2, keepdims=True)/m
+    dZ1 = xp.dot(W2.T, dZ2)*(1-xp.power(A1,2))
+    dW1 = xp.dot(dZ1, X.T)/m
+    db1 = xp.sum(dZ1, axis=1, keepdims=True)/m
     
     
     grads = {"dW1": dW1,
@@ -237,7 +251,7 @@ def nn_model(X, Y, n_h, num_iterations = 10000, print_cost=False):
     parameters -- parameters learnt by the model. They can then be used to predict.
     """
     
-    np.random.seed(3)
+    xp.random.seed(3)
     n_x = layer_sizes(X, Y)[0]
     n_y = layer_sizes(X, Y)[2]
     
@@ -290,12 +304,14 @@ def predict(parameters, X):
     
     return predictions
 
-hidden_layer_sizes = [1, 2, 3, 4, 5, 20, 50]
+start_time = time.time()
+hidden_layer_sizes = [1, 2, 3, 4, 5, 20, 50, 100]
 for i, n_h in enumerate(hidden_layer_sizes):
     # plt.subplot(5, 2, i+1)
     # plt.title('Hidden Layer of size %d' % n_h)
     parameters = nn_model(X, Y, n_h, num_iterations = 5000)
     # plot_decision_boundary(lambda x: predict(parameters, x.T), X, Y[0])
     predictions = predict(parameters, X)
-    accuracy = float((np.dot(Y,predictions.T) + np.dot(1-Y,1-predictions.T))/float(Y.size)*100)
-    print ("Accuracy for {} hidden units: {} %".format(n_h, accuracy))
+    accuracy = float((xp.dot(Y,predictions.T) + xp.dot(1-Y,1-predictions.T))/float(Y.size)*100)
+    print ("Time for {} hidden units: {} %".format(n_h, round(time.time()-start_time, 4)))
+    start_time = time.time()
