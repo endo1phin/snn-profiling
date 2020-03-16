@@ -305,7 +305,7 @@ def predict(parameters, X):
     return predictions
 
 start_time = time.time()
-hidden_layer_sizes = [1, 2, 3, 4, 5, 20, 50, 100]
+hidden_layer_sizes = [1,5,10,25,50,75,100]
 for i, n_h in enumerate(hidden_layer_sizes):
     # plt.subplot(5, 2, i+1)
     # plt.title('Hidden Layer of size %d' % n_h)
@@ -313,5 +313,5 @@ for i, n_h in enumerate(hidden_layer_sizes):
     # plot_decision_boundary(lambda x: predict(parameters, x.T), X, Y[0])
     predictions = predict(parameters, X)
     accuracy = float((xp.dot(Y,predictions.T) + xp.dot(1-Y,1-predictions.T))/float(Y.size)*100)
-    print ("Time for {} hidden units: {} %".format(n_h, round(time.time()-start_time, 4)))
+    print ("Time for {} hidden units: {} %".format(n_h, round(time.time()-start_time, 2)))
     start_time = time.time()
